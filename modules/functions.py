@@ -11,20 +11,22 @@ from urllib.error import HTTPError, URLError
 import json
 import base64
 import pandas as pd
-
-
+    
 def fetch_json(url):
-    """Fetch JSON data from url request"""
+    """Fetch JSON data from a URL request and handle errors"""
     try:
         with urlopen(url) as response:
             data = response.read().decode("utf-8")
             return json.loads(data)
     except HTTPError as error:
-        print(f"HTTPError: {error.code}")
-        return False
+        print(f"HTTP Error {error.code}: {error.reason}")
+        return None
     except URLError as error:
-        print(f"URLError: {error}")
-        return False
+        print(f"URL Error: {error.reason}")
+        return None
+    except Exception as error:
+        print(f"Unexpected Error: {error}")
+        return None
 
 
 def get_weather_df_from_open_meteo_json(json_data):

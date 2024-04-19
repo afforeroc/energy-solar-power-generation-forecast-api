@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 
 """
-This module provides utility functions for load forecasting project
+This module provides utility functions
 Author: Andres Felipe Forero Correa
-Date: 2023-05-23
+Date: 2023-04-18
 """
 import io
 from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 import json
 import base64
+# from datetime import datetime
 import pandas as pd
-    
+
+
 def fetch_json(url):
     """Fetch JSON data from a URL request and handle errors"""
     try:
@@ -62,23 +64,18 @@ def create_excel_download_link(df, filename, html_text):
              download="{filename}">{html_text}</a>'
     return link
 
-# OLD
-# def get_datetime_range_by_hour(start_datetime, limit_datetime):
-#     """Get datetime range hour by hour"""
-#     datetime_range = [
-#         start_datetime + dt.timedelta(hours=x)
-#         for x in range(
-#             int((limit_datetime - start_datetime).total_seconds() / 3600)
-#         )
-#     ]
-#     return datetime_range
+#def is_valid_number_str(value_str):
+#    if value_str.isdigit():
+#        return True
+#    try:
+#        _ = float(value_str)
+#        return True
+#    except ValueError:
+#        return False
 
-
-# def get_time_df_from_datetime_range(datetime_range, holidays):
-#     """Create a dataframe with some time parameters using a datetime range"""
-#     time_df = pd.DataFrame(datetime_range, columns=['datetime'])
-#     time_df['day_of_week'] = time_df['datetime'].dt.dayofweek
-#     time_df['holiday'] = time_df['datetime'].\
-#         map(lambda x: 1 if x in holidays else 0)
-#     time_df['hour'] = time_df['datetime'].dt.hour
-#     return time_df
+#def is_valid_date_str(date_str):
+#    try:
+#        datetime.strptime(date_str, '%Y-%m-%d')
+#        return True
+#    except ValueError:
+#        return False

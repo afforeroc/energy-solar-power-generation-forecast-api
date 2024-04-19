@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# URL sample: http://localhost:8501/?latitude=89.00&longitude=-74.88&area=100&start_date=2024-04-17&end_date=2024-04-23
 """
 Predicción de energía solar: web app that
 predicts solar power using OpenMeteo API.
@@ -10,27 +10,7 @@ Date: 2024-04-18
 from datetime import datetime, timedelta
 import plotly.express as px
 import streamlit as st
-from modules.functions import fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
-
-# Functions
-def is_valid_number_str(value_str):
-    # Try to convert to integer first
-    if value_str.isdigit():
-        return True
-    # Try to convert to float if not an integer
-    try:
-        _ = float(value_str)
-        return True
-    except ValueError:
-        return False
-
-def is_valid_date_str(date_str):
-    try:
-        datetime.strptime(date_str, '%Y-%m-%d')
-        return True
-    except ValueError:
-        return False
-
+from functions import fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
 
 # Constants
 forecast_days = 7
@@ -50,7 +30,6 @@ OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={
 
 
 if __name__ == "__main__":
-    # URL template: http://localhost:8501/?latitude=4.14924&longitude=-74.88429&area=100&start_date=2024-04-17&end_date=2024-04-23
     # Page title, title and caption of the web app
     st.set_page_config(page_title="ECS: Predicción kW solar", page_icon="🌞")
     st.title("Predicción de Energía Solar")
@@ -87,27 +66,27 @@ if __name__ == "__main__":
     # Push the botton
     if st.button('Predecir') or len(params) > 0:
         # Validate ranges of values for each variable
-        if not (-90 < latitude < 90):
+        if not -90 < latitude < 90:
             st.error("ERROR: El valor de la 'Latitud' debe estar entre -90 y 90.", icon="🚨")
             st.stop()
-        if not (-180 < longitude < 180):
+        if not -180 < longitude < 180:
             st.error("ERROR: El valor de la 'Latitud' debe estar entre -180 y 180.", icon="🚨")
             st.stop()
-        if not (area > 0):
+        if not area > 0:
             st.error("ERROR: El valor de la 'Área' debe ser mayor que cero.", icon="🚨")
             st.stop()
-        if not (end_date >= start_date):
+        if not end_date >= start_date:
             st.error("ERROR: La 'Fecha inicial' debe ser menor o igual que la 'Fecha final'.", icon="🚨")
             st.stop()
-        if not ((end_date - start_date).days + 1 <= forecast_days):
+        if not (end_date - start_date).days + 1 <= forecast_days:
             st.error("ERROR: El rango máximo de predicción es 7 días.", icon="🚨")
             st.stop()
 
         # Format the OPEN_METEO_URL_TEMPLATE
         open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude, longitude=longitude, area=area, start_date=start_date, end_date=end_date, weather_variables_str=main_weather_variable_en)
         # Test API URL
-        st.header("Test Open Meteo API URL")
-        st.success(open_meteo_api_url)
+        # st.header("Test Open Meteo API URL")
+        # st.success(open_meteo_api_url)
         # Fetch JSON data
         json_data = fetch_json(open_meteo_api_url)
         # Forecast dataframe from JSON data
@@ -137,8 +116,8 @@ if __name__ == "__main__":
         color_palette2 = px.colors.qualitative.D3[:len(date_list)]
         # First section for plots
         fig1 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
-                    labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]", "fecha": "Fecha"},
-                    markers=True, color_discrete_sequence=color_palette1)
+                       labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]", "fecha": "Fecha"},
+                       markers=True, color_discrete_sequence=color_palette1)
         st.header("Curvas de potencia diarias")
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         # Second section for plots
@@ -154,8 +133,7 @@ if __name__ == "__main__":
             custom_colorscale = [[0.0, "#FFFFFF"], [1.0, color_for_date]]
             # Plot for each date
             fig_aux = px.bar(mini_df, x="hora", y="potencia_solar [kW]",
-                            labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]"},
-                            color="potencia_solar [kW]",
-                            color_continuous_scale=custom_colorscale)
+                             labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]"},
+                             color="potencia_solar [kW]", color_continuous_scale=custom_colorscale)
             st.subheader(f"{week_day_es.capitalize()}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)

@@ -1,5 +1,5 @@
-# Energy Solar Generation API
-Energy Computer Systems - Solar Power Forecasting API
+# Solar Power Generation Forecast System API
+Energy Computer Systems - Solar Power Generation Forecast System
 
 ## Install Python and Update PIP
 > PowerShell

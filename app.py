@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # URL sample: http://localhost:8501/?latitude=89.00&longitude=-74.88&area=100&start_date=2024-04-17&end_date=2024-04-23
 """
-Predicción de energía solar: web app that
-predicts solar power using OpenMeteo API.
+Title: ECS: Predicción de energía solar
+Description: Web app that predicts solar power using OpenMeteo API.
 Author: Andres Felipe Forero Correa
 Date: 2024-04-18
 """
@@ -31,8 +31,8 @@ OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={
 
 if __name__ == "__main__":
     # Page title, title and caption of the web app
-    st.set_page_config(page_title="ECS: Predicción kW solar", page_icon="🌞")
-    st.title("Predicción de Energía Solar")
+    st.set_page_config(page_title="ECS: Predicción energía solar", page_icon="🌞")
+    st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
     # Obtain today and seven days forwarth dates
     current_date = datetime.now().date()

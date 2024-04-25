@@ -10,8 +10,26 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 import json
 import base64
-# from datetime import datetime
+from datetime import datetime
 import pandas as pd
+
+
+def is_valid_number_str(value_str):
+    if value_str.isdigit():
+        return True
+    try:
+        _ = float(value_str)
+        return True
+    except ValueError:
+        return False
+
+
+def is_valid_date_str(date_str, date_str_format="%Y-%m-%d"):
+    try:
+        datetime.strptime(date_str, date_str_format)
+        return True
+    except ValueError:
+        return False
 
 
 def fetch_json(url):
@@ -64,18 +82,3 @@ def create_excel_download_link(df, filename, html_text):
              download="{filename}">{html_text}</a>'
     return link
 
-#def is_valid_number_str(value_str):
-#    if value_str.isdigit():
-#        return True
-#    try:
-#        _ = float(value_str)
-#        return True
-#    except ValueError:
-#        return False
-
-#def is_valid_date_str(date_str):
-#    try:
-#        datetime.strptime(date_str, '%Y-%m-%d')
-#        return True
-#    except ValueError:
-#        return False

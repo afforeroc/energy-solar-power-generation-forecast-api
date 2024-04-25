@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# URL sample: http://localhost:8501/?latitude=89.00&longitude=-74.88&area=100&start_date=2024-04-17&end_date=2024-04-23
+# URL sample: http://localhost:8501/?code=NX3756329Z&capacity=456&voltage=789&latitude=4.624335&longitude=-74.063644&area=700&start_date=2024-04-25&end_date=2024-05-01
 """
 Title: ECS: Predicción de energía solar
 Description: Web app that predicts solar power using OpenMeteo API.
@@ -7,23 +7,22 @@ Author: Andres Felipe Forero Correa
 Date: 2024-04-18
 """
 
-import random
 from datetime import datetime, timedelta
 import plotly.express as px
 import streamlit as st
-from lorem_text import lorem
-import string
-from functions import fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
+from functions import is_valid_number_str, is_valid_date_str, \
+    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
 
 # Constants
 forecast_days = 7
 delta_days = forecast_days - 1
 mega = 10e6
 kilo = 10e3
+key_list = ["latitude", "longitude", "area", "start_date", "end_date", "code", "capacity", "voltage"]
 tension_values = [0.22, 13.2, 13.8, 34.5]
 main_weather_variable_en = "direct_radiation"
 main_weather_variable_es = "radiacion_directa"
-week_dict = {
+week_en_es_dict = {
     "Monday": "lunes", "Tuesday": "martes", "Wednesday": "miércoles",
     "Thursday": "jueves", "Friday": "viernes", "Saturday": "sábado", "Sunday": "domingo"
 }
@@ -34,70 +33,106 @@ month_dict = {
 OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly={weather_variables_str}&timezone=auto"
 
 
+def validate_keys(input_dict, key_list):
+    dict_keys = input_dict.keys()
+    return all(key in dict_keys for key in key_list)
+
+
 if __name__ == "__main__":
     # Page title, title and caption of the web app
     st.set_page_config(page_title="ECS: Predicción energía solar", page_icon="🌞")
     st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
     # Obtain today and seven days forwarth dates
-    today_date = datetime.now().date()
-    today_plus_delta_date = today_date + timedelta(days=delta_days)
-    # Dates in str
-    today_date_str = today_date.strftime("%Y-%m-%d")
-    today_plus_delta_date_str = today_plus_delta_date.strftime("%Y-%m-%d")
-    # Extract params from URL
-    params = st.query_params
-    if len(params) == 0:
-        caracteres = string.ascii_letters + string.digits
-        codigo_str = ''.join(random.choices(caracteres, k=10)).upper()
-        descripcion_str = lorem.words(20)
-        capacidad_str = str(round(random.uniform(2, 100), 3))
-        random.shuffle(tension_values)
-        tension_str =  str(round(tension_values[0], 3))
-        latitude_str = "4.624335"
-        longitude_str = "-74.063644"
-        area_str = str(round(random.uniform(7, 745), 3))
-        start_date_str = today_date_str
-        end_date_str = today_plus_delta_date_str
-    elif len(params) == 9:
-        codigo_str = params.get("codigo")
-        descripcion_str = params.get("descripcion")
-        capacidad_str = params.get("capacidad")
-        tension_str = params.get("tension")
-        latitude_str = params.get("latitude")
-        longitude_str = params.get("longitude")
-        area_str = params.get("area")
-        start_date_str = params.get("start_date")
-        end_date_str = params.get("end_date")
-    # Show basic information
-    st.markdown(f"Código: ***{codigo_str}***")
-    st.markdown(f"Descripción: ***{descripcion_str}***")
-    st.markdown(f"Capacidad nominal [kVA]: ***{capacidad_str}***")
-    st.markdown(f"Tensión [kV]: ***{tension_str}***")
+    min_date = datetime.combine(datetime.now().date(), datetime.min.time())
+    max_date = min_date + timedelta(days=delta_days)
+    # Extract URL params in a dict
+    param_dict = st.query_params.to_dict()
+    # Define the default values without URL params
+    if len(param_dict) == 0:
+        st.markdown(f"Ubicación geográfica: ***Bogotá D.C.*** (ejemplo)")
+        latitude = 4.624335
+        longitude = -74.063644
+        area = 168.0
+        start_date = min_date
+        end_date = max_date
+    # Validate each param and extract its value
+    elif validate_keys(param_dict, key_list):
+        code = param_dict["code"]
+        # Validate and extract capacity param
+        if not is_valid_number_str(param_dict["capacity"]):
+            st.error("ERROR: El valor de 'capacity' de la URL no representa un número válido.", icon="🚨")
+            st.stop()
+        capacity = float(param_dict["capacity"])
+        # Validate and extract voltage param
+        if not is_valid_number_str(param_dict["voltage"]):
+            st.error("ERROR: El valor de 'voltage' de la URL no representa un número válido.", icon="🚨")
+            st.stop()
+        voltage = float(param_dict["voltage"])
+        # Validate and extract latitude param
+        if not is_valid_number_str(param_dict["latitude"]):
+            st.error("ERROR: El valor de 'latitude' de la URL no representa un número válido.", icon="🚨")
+            st.stop()
+        latitude = float(param_dict["latitude"])
+        if not -90 <= latitude <= 90:
+            st.error("ERROR: El valor de 'latitude' de la URL debe estar entre -90 y 90.", icon="🚨")
+            st.stop()
+        # Validate and extract longitude param
+        if not is_valid_number_str(param_dict["longitude"]):
+            st.error("ERROR: El valor de 'latitude' de la URL no representa un número válido.", icon="🚨")
+            st.stop()
+        longitude = float(param_dict["longitude"])
+        if not -180 <= longitude <= 180:
+            st.error("ERROR: El valor de 'latitude' de la URL debe estar entre -180 y 180.", icon="🚨")
+            st.stop()
+        # Validate and extract area param
+        if not is_valid_number_str(param_dict["area"]):
+            st.error("ERROR: El valor de 'area' de la URL no representa un número válido.", icon="🚨")
+            st.stop()
+        area = float(param_dict["area"])
+        if not area >= 0.0001:
+            st.error("ERROR: El valor de 'area' de la URL debe ser mayor o igual que 0.0001.", icon="🚨")
+            st.stop()
+        # Validate start date param
+        if not is_valid_date_str(param_dict["start_date"]):
+            st.error("ERROR: El valor de 'start_date' de la URL no representa una fecha válida.", icon="🚨")
+            st.stop()
+        start_date = datetime.strptime(param_dict["start_date"], "%Y-%m-%d")
+        if not min_date <= start_date <= max_date:
+            st.error(f"ERROR: El valor de 'start_date' de la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
+            st.stop()
+        # Validate end date param
+        if not is_valid_date_str(param_dict["end_date"]):
+            st.error("ERROR: El valor de 'end_date' de la URL no representa una fecha válida.", icon="🚨")
+            st.stop()
+        end_date = datetime.strptime(param_dict["end_date"], "%Y-%m-%d")
+        if not min_date <= end_date <= max_date:
+            st.error(f"ERROR: El valor de 'end_date' de la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
+            st.stop()
+        # Show codigo, capacidad and tension
+        st.markdown(f"Código: ***{code}***")
+        st.markdown(f"Capacidad nominal [kVA]: ***{capacity}***")
+        st.markdown(f"Tensión nominal [kV]: ***{voltage}***")
+    else:
+        st.error("ERROR: Hay uno o varios errores en el uso de los parámetros en la URL.", icon="🚨")
+        st.stop()
+
     # Interpolate input data using forms
-    latitude = st.number_input("Latitud", value=float(latitude_str))
-    longitude = st.number_input("Longitud", value=float(longitude_str))
-    area = st.number_input("Área [m²]", value=float(area_str))
-    start_date = st.date_input("Fecha inicial", min_value=today_date, max_value=today_plus_delta_date, value=datetime.strptime(start_date_str, "%Y-%m-%d"))
-    end_date = st.date_input("Fecha final", min_value=today_date, max_value=today_plus_delta_date, value=datetime.strptime(end_date_str, "%Y-%m-%d"))
+    latitude_in = st.number_input("Latitud", value=latitude, min_value=-90.0, max_value=90.0)
+    longitude_in = st.number_input("Longitud", value=longitude, min_value=-180.0, max_value=180.0)
+    area_in= st.number_input("Área [m²]", value=area, min_value=0.0001)
+    start_date_in = st.date_input("Fecha inicial", value=start_date, min_value=min_date, max_value=max_date)
+    end_date_in = st.date_input("Fecha final", value=end_date, min_value=min_date, max_value=max_date)
+    
     # Push the botton
-    if st.button('Predecir') or len(params) > 0:
+    if st.button('Predecir') or len(param_dict) == len(key_list):
         # Validate ranges of values for each variable
-        if not -90 < latitude < 90:
-            st.error("ERROR: El valor de la 'Latitud' debe estar entre -90 y 90.", icon="🚨")
-            st.stop()
-        if not -180 < longitude < 180:
-            st.error("ERROR: El valor de la 'Latitud' debe estar entre -180 y 180.", icon="🚨")
-            st.stop()
-        if not area > 0:
-            st.error("ERROR: El valor de la 'Área' debe ser mayor que cero.", icon="🚨")
-            st.stop()
-        if not end_date >= start_date:
+        if not end_date_in >= start_date_in:
             st.error("ERROR: La 'Fecha inicial' debe ser menor o igual que la 'Fecha final'.", icon="🚨")
             st.stop()
 
         # Format the OPEN_METEO_URL_TEMPLATE
-        open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude, longitude=longitude, area=area, start_date=start_date, end_date=end_date, weather_variables_str=main_weather_variable_en)
+        open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude_in, longitude=longitude_in, area=area_in, start_date=start_date_in, end_date=end_date_in, weather_variables_str=main_weather_variable_en)
         # Test API URL
         # st.header("Test Open Meteo API URL")
         # st.success(open_meteo_api_url)
@@ -107,15 +142,20 @@ if __name__ == "__main__":
         forecast_df = get_weather_df_from_open_meteo_json(json_data)
         forecast_df = forecast_df.rename(columns={"datetime": "fecha_hora"})
         forecast_df = forecast_df.set_index("fecha_hora")
+        # Replace negative values by zero
+        forecast_df.loc[forecast_df[f"{main_weather_variable_en} [W/m²]"] < 0, f"{main_weather_variable_en} [W/m²]"] = 0
         # Convert weather variable columns from Watts to kilo Watts
         forecast_df[f"{main_weather_variable_es} [kW/m²]"] = forecast_df[f"{main_weather_variable_en} [W/m²]"] / kilo
         # Delete old column
         forecast_df = forecast_df.drop(columns=[f"{main_weather_variable_en} [W/m²]"])
         # Obtain solar power generation from main weather variable
-        forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * float(area)
+        forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
+        # print df
+        print(forecast_df.head(10))
         # Round decimals
         forecast_df["radiacion_directa [kW/m²]"] = forecast_df["radiacion_directa [kW/m²]"].round(3)
         forecast_df["potencia_solar [kW]"] = forecast_df["potencia_solar [kW]"].round(3)
+        print(forecast_df.head(10))
         # Show output dataframe
         st.header("Dataframe de predicción")
         st.dataframe(forecast_df)
@@ -132,28 +172,28 @@ if __name__ == "__main__":
         # Palette of colors for plots
         color_palette1 = px.colors.qualitative.Plotly[:len(date_list)]
         color_palette2 = px.colors.qualitative.D3[:len(date_list)]
-        # Zero plot
-        fig0 = px.line(graph_df, x="fecha_hora", y="potencia_solar [kW]",
-                       labels={"fecha_hora": "Fecha hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
-                       markers=True, color_discrete_sequence=color_palette2)
+        # Plot 1
+        fig1 = px.area(graph_df, x="fecha_hora", y="potencia_solar [kW]",
+                       labels={"fecha_hora": "Fecha-hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
+                       color_discrete_sequence=color_palette2)
         st.header("Curvas de potencia total")
-        fig0.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
-        st.plotly_chart(fig0, theme="streamlit", use_container_width=True)
-        # First section for plots
-        fig1 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
+        fig1.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
+        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
+        # Plot 2
+        fig2 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
                        labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]", "fecha": "Fecha"},
                        markers=True, color_discrete_sequence=color_palette1)
-        fig1.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
+        fig2.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
         st.header("Curvas de potencia diarias")
-        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
-        # Second section for plots
+        st.plotly_chart(fig2, theme="streamlit", use_container_width=True)
+        # Plot 3
         st.header("Potencia por hora en el día")
         for idx, date in enumerate(date_list):
             # Extract mini df
             mini_df = graph_df[graph_df["fecha"] == date]
             # Set week day in spanish
             week_day_en = mini_df["fecha_hora"].astype(object).unique()[0].strftime("%A")
-            week_day_es = week_dict[week_day_en]
+            week_day_es = week_en_es_dict[week_day_en]
             # Set color scale related with first section
             color_for_date = color_palette1[idx % len(color_palette1)]
             custom_colorscale = [[0.0, "#FFFFFF"], [1.0, color_for_date]]

@@ -7,15 +7,20 @@ Author: Andres Felipe Forero Correa
 Date: 2024-04-18
 """
 
+import random
 from datetime import datetime, timedelta
 import plotly.express as px
 import streamlit as st
+from lorem_text import lorem
+import string
 from functions import fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
 
 # Constants
 forecast_days = 7
+delta_days = forecast_days - 1
 mega = 10e6
 kilo = 10e3
+tension_values = [0.22, 13.2, 13.8, 34.5]
 main_weather_variable_en = "direct_radiation"
 main_weather_variable_es = "radiacion_directa"
 week_dict = {
@@ -35,34 +40,46 @@ if __name__ == "__main__":
     st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
     # Obtain today and seven days forwarth dates
-    current_date = datetime.now().date()
-    today_plus_more_days_date = current_date + timedelta(days=forecast_days-1)
+    today_date = datetime.now().date()
+    today_plus_delta_date = today_date + timedelta(days=delta_days)
     # Dates in str
-    today_date_str = current_date.strftime("%Y-%m-%d")
-    today_plus_more_days_date_str = today_plus_more_days_date.strftime("%Y-%m-%d")
+    today_date_str = today_date.strftime("%Y-%m-%d")
+    today_plus_delta_date_str = today_plus_delta_date.strftime("%Y-%m-%d")
     # Extract params from URL
     params = st.query_params
-    if len(params) == 5:
+    if len(params) == 0:
+        caracteres = string.ascii_letters + string.digits
+        codigo_str = ''.join(random.choices(caracteres, k=10)).upper()
+        descripcion_str = lorem.words(20)
+        capacidad_str = str(round(random.uniform(2, 100), 3))
+        random.shuffle(tension_values)
+        tension_str =  str(round(tension_values[0], 3))
+        latitude_str = "4.624335"
+        longitude_str = "-74.063644"
+        area_str = str(round(random.uniform(7, 745), 3))
+        start_date_str = today_date_str
+        end_date_str = today_plus_delta_date_str
+    elif len(params) == 9:
+        codigo_str = params.get("codigo")
+        descripcion_str = params.get("descripcion")
+        capacidad_str = params.get("capacidad")
+        tension_str = params.get("tension")
         latitude_str = params.get("latitude")
         longitude_str = params.get("longitude")
         area_str = params.get("area")
         start_date_str = params.get("start_date")
         end_date_str = params.get("end_date")
-    elif len(params) == 0:
-        latitude_str = "4.624335"
-        longitude_str = "-74.063644"
-        area_str = "161.80"
-        start_date_str = today_date_str
-        end_date_str = today_plus_more_days_date_str
-    else:
-        st.error("ERROR: Los paramatros de la URL están incompletos, no se puede realizar la predicción.", icon="🚨")
-        st.stop()
+    # Show basic information
+    st.markdown(f"Código: ***{codigo_str}***")
+    st.markdown(f"Descripción: ***{descripcion_str}***")
+    st.markdown(f"Capacidad nominal [kVA]: ***{capacidad_str}***")
+    st.markdown(f"Tensión [kV]: ***{tension_str}***")
     # Interpolate input data using forms
     latitude = st.number_input("Latitud", value=float(latitude_str))
     longitude = st.number_input("Longitud", value=float(longitude_str))
-    area = st.number_input("Área", value=float(area_str))
-    start_date = st.date_input("Fecha inicial", value=datetime.strptime(start_date_str, '%Y-%m-%d'))
-    end_date = st.date_input("Fecha final", value=datetime.strptime(end_date_str, '%Y-%m-%d'))
+    area = st.number_input("Área [m²]", value=float(area_str))
+    start_date = st.date_input("Fecha inicial", min_value=today_date, max_value=today_plus_delta_date, value=datetime.strptime(start_date_str, "%Y-%m-%d"))
+    end_date = st.date_input("Fecha final", min_value=today_date, max_value=today_plus_delta_date, value=datetime.strptime(end_date_str, "%Y-%m-%d"))
     # Push the botton
     if st.button('Predecir') or len(params) > 0:
         # Validate ranges of values for each variable
@@ -77,9 +94,6 @@ if __name__ == "__main__":
             st.stop()
         if not end_date >= start_date:
             st.error("ERROR: La 'Fecha inicial' debe ser menor o igual que la 'Fecha final'.", icon="🚨")
-            st.stop()
-        if not (end_date - start_date).days + 1 <= forecast_days:
-            st.error("ERROR: El rango máximo de predicción es 7 días.", icon="🚨")
             st.stop()
 
         # Format the OPEN_METEO_URL_TEMPLATE
@@ -99,6 +113,9 @@ if __name__ == "__main__":
         forecast_df = forecast_df.drop(columns=[f"{main_weather_variable_en} [W/m²]"])
         # Obtain solar power generation from main weather variable
         forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * float(area)
+        # Round decimals
+        forecast_df["radiacion_directa [kW/m²]"] = forecast_df["radiacion_directa [kW/m²]"].round(3)
+        forecast_df["potencia_solar [kW]"] = forecast_df["potencia_solar [kW]"].round(3)
         # Show output dataframe
         st.header("Dataframe de predicción")
         st.dataframe(forecast_df)
@@ -107,17 +124,26 @@ if __name__ == "__main__":
         excel_filename = output_filename + ".xlsx"
         download_excel_link = create_excel_download_link(forecast_df.reset_index(), excel_filename, "Descargar Excel")
         st.markdown(download_excel_link, unsafe_allow_html=True)
-        # Create graph_df and color_palette
+        # Create graph_df
         graph_df = forecast_df.reset_index().copy()
         graph_df["fecha"] = graph_df["fecha_hora"].dt.date
         graph_df["hora"] = graph_df["fecha_hora"].dt.hour
         date_list = list(graph_df["fecha"].unique())
+        # Palette of colors for plots
         color_palette1 = px.colors.qualitative.Plotly[:len(date_list)]
         color_palette2 = px.colors.qualitative.D3[:len(date_list)]
+        # Zero plot
+        fig0 = px.line(graph_df, x="fecha_hora", y="potencia_solar [kW]",
+                       labels={"fecha_hora": "Fecha hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
+                       markers=True, color_discrete_sequence=color_palette2)
+        st.header("Curvas de potencia total")
+        fig0.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
+        st.plotly_chart(fig0, theme="streamlit", use_container_width=True)
         # First section for plots
         fig1 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
-                       labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]", "fecha": "Fecha"},
+                       labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]", "fecha": "Fecha"},
                        markers=True, color_discrete_sequence=color_palette1)
+        fig1.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
         st.header("Curvas de potencia diarias")
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         # Second section for plots
@@ -133,7 +159,8 @@ if __name__ == "__main__":
             custom_colorscale = [[0.0, "#FFFFFF"], [1.0, color_for_date]]
             # Plot for each date
             fig_aux = px.bar(mini_df, x="hora", y="potencia_solar [kW]",
-                             labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia solar [kW]"},
+                             labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]"},
                              color="potencia_solar [kW]", color_continuous_scale=custom_colorscale)
+            fig_aux.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
             st.subheader(f"{week_day_es.capitalize()}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)

@@ -10,7 +10,7 @@ Date: 2024-04-18
 from datetime import datetime, timedelta
 import plotly.express as px
 import streamlit as st
-from functions import is_valid_number_str, is_valid_date_str, \
+from functions import validate_keys, is_valid_number_str, is_valid_date_str, \
     fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
 
 # Constants
@@ -18,24 +18,18 @@ forecast_days = 7
 delta_days = forecast_days - 1
 mega = 10e6
 kilo = 10e3
-key_list = ["latitude", "longitude", "area", "start_date", "end_date", "code", "capacity", "voltage"]
-tension_values = [0.22, 13.2, 13.8, 34.5]
+param_names = ["latitude", "longitude", "area", "start_date", "end_date", "code", "capacity", "voltage"]
 main_weather_variable_en = "direct_radiation"
 main_weather_variable_es = "radiacion_directa"
 week_en_es_dict = {
-    "Monday": "lunes", "Tuesday": "martes", "Wednesday": "miércoles",
-    "Thursday": "jueves", "Friday": "viernes", "Saturday": "sábado", "Sunday": "domingo"
+    "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
+    "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"
 }
 month_dict = {
     1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
     7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
 }
 OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly={weather_variables_str}&timezone=auto"
-
-
-def validate_keys(input_dict, key_list):
-    dict_keys = input_dict.keys()
-    return all(key in dict_keys for key in key_list)
 
 
 if __name__ == "__main__":
@@ -46,91 +40,93 @@ if __name__ == "__main__":
     # Obtain today and seven days forwarth dates
     min_date = datetime.combine(datetime.now().date(), datetime.min.time())
     max_date = min_date + timedelta(days=delta_days)
-    # Extract URL params in a dict
+    # Convert URL params in a dict and validate all params
     param_dict = st.query_params.to_dict()
+    missing_params = validate_keys(param_dict, param_names)
     # Define the default values without URL params
     if len(param_dict) == 0:
-        st.markdown(f"Ubicación geográfica: ***Bogotá D.C.*** (ejemplo)")
+        st.markdown("Ubicación geográfica: **Bogotá D.C.** (*ejemplo*)")
         latitude = 4.624335
         longitude = -74.063644
         area = 168.0
         start_date = min_date
         end_date = max_date
     # Validate each param and extract its value
-    elif validate_keys(param_dict, key_list):
+    elif len(missing_params) == 0:
         code = param_dict["code"]
+        if not len(code) > 0:
+            st.error("ERROR: El valor de 'code' en la URL está vacio.", icon="🚨")
+            st.stop()
         # Validate and extract capacity param
         if not is_valid_number_str(param_dict["capacity"]):
-            st.error("ERROR: El valor de 'capacity' de la URL no representa un número válido.", icon="🚨")
+            st.error("ERROR: El valor de 'capacity' en la URL no representa un número válido.", icon="🚨")
             st.stop()
         capacity = float(param_dict["capacity"])
         # Validate and extract voltage param
         if not is_valid_number_str(param_dict["voltage"]):
-            st.error("ERROR: El valor de 'voltage' de la URL no representa un número válido.", icon="🚨")
+            st.error("ERROR: El valor de 'voltage' en la URL no representa un número válido.", icon="🚨")
             st.stop()
         voltage = float(param_dict["voltage"])
         # Validate and extract latitude param
         if not is_valid_number_str(param_dict["latitude"]):
-            st.error("ERROR: El valor de 'latitude' de la URL no representa un número válido.", icon="🚨")
+            st.error("ERROR: El valor de 'latitude' en la URL no representa un número válido.", icon="🚨")
             st.stop()
         latitude = float(param_dict["latitude"])
         if not -90 <= latitude <= 90:
-            st.error("ERROR: El valor de 'latitude' de la URL debe estar entre -90 y 90.", icon="🚨")
+            st.error("ERROR: El valor de 'latitude' en la URL debe estar entre -90 y 90.", icon="🚨")
             st.stop()
         # Validate and extract longitude param
         if not is_valid_number_str(param_dict["longitude"]):
-            st.error("ERROR: El valor de 'latitude' de la URL no representa un número válido.", icon="🚨")
+            st.error("ERROR: El valor de 'latitude' en la URL no representa un número válido.", icon="🚨")
             st.stop()
         longitude = float(param_dict["longitude"])
         if not -180 <= longitude <= 180:
-            st.error("ERROR: El valor de 'latitude' de la URL debe estar entre -180 y 180.", icon="🚨")
+            st.error("ERROR: El valor de 'latitude' en la URL debe estar entre -180 y 180.", icon="🚨")
             st.stop()
         # Validate and extract area param
         if not is_valid_number_str(param_dict["area"]):
-            st.error("ERROR: El valor de 'area' de la URL no representa un número válido.", icon="🚨")
+            st.error("ERROR: El valor de 'area' en la URL no representa un número válido.", icon="🚨")
             st.stop()
         area = float(param_dict["area"])
-        if not area >= 0.0001:
-            st.error("ERROR: El valor de 'area' de la URL debe ser mayor o igual que 0.0001.", icon="🚨")
+        if area < 0.0001:
+            st.error("ERROR: El valor de 'area' en la URL debe ser mayor o igual que 0.0001.", icon="🚨")
             st.stop()
         # Validate start date param
         if not is_valid_date_str(param_dict["start_date"]):
-            st.error("ERROR: El valor de 'start_date' de la URL no representa una fecha válida.", icon="🚨")
+            st.error("ERROR: El valor de 'start_date' en la URL no representa una fecha válida.", icon="🚨")
             st.stop()
         start_date = datetime.strptime(param_dict["start_date"], "%Y-%m-%d")
         if not min_date <= start_date <= max_date:
-            st.error(f"ERROR: El valor de 'start_date' de la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
+            st.error(f"ERROR: El valor de 'start_date' en la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
             st.stop()
         # Validate end date param
         if not is_valid_date_str(param_dict["end_date"]):
-            st.error("ERROR: El valor de 'end_date' de la URL no representa una fecha válida.", icon="🚨")
+            st.error("ERROR: El valor de 'end_date' en la URL no representa una fecha válida.", icon="🚨")
             st.stop()
         end_date = datetime.strptime(param_dict["end_date"], "%Y-%m-%d")
         if not min_date <= end_date <= max_date:
-            st.error(f"ERROR: El valor de 'end_date' de la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
+            st.error(f"ERROR: El valor de 'end_date' en la URL debe estar entre {min_date.strftime('%Y-%m-%d')} y {max_date.strftime('%Y-%m-%d')} (7 días).", icon="🚨")
             st.stop()
         # Show codigo, capacidad and tension
-        st.markdown(f"Código: ***{code}***")
-        st.markdown(f"Capacidad nominal [kVA]: ***{capacity}***")
-        st.markdown(f"Tensión nominal [kV]: ***{voltage}***")
+        st.markdown(f"Código: **{code}**")
+        st.markdown(f"Capacidad nominal [kVA]: **{capacity}**")
+        st.markdown(f"Tensión nominal [kV]: **{voltage}**")
     else:
-        st.error("ERROR: Hay uno o varios errores en el uso de los parámetros en la URL.", icon="🚨")
+        missing_params_str = ", ".join(f"'{param}'" for param in missing_params)
+        st.error(f"ERROR: Faltan los siguientes parámetros en la URL: {missing_params_str}", icon="🚨")
         st.stop()
-
     # Interpolate input data using forms
     latitude_in = st.number_input("Latitud", value=latitude, min_value=-90.0, max_value=90.0)
     longitude_in = st.number_input("Longitud", value=longitude, min_value=-180.0, max_value=180.0)
     area_in= st.number_input("Área [m²]", value=area, min_value=0.0001)
     start_date_in = st.date_input("Fecha inicial", value=start_date, min_value=min_date, max_value=max_date)
     end_date_in = st.date_input("Fecha final", value=end_date, min_value=min_date, max_value=max_date)
-    
-    # Push the botton
-    if st.button('Predecir') or len(param_dict) == len(key_list):
+    # Push the predict botton
+    if st.button('Predecir') or len(param_dict) == len(param_names):
         # Validate ranges of values for each variable
         if not end_date_in >= start_date_in:
             st.error("ERROR: La 'Fecha inicial' debe ser menor o igual que la 'Fecha final'.", icon="🚨")
             st.stop()
-
         # Format the OPEN_METEO_URL_TEMPLATE
         open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude_in, longitude=longitude_in, area=area_in, start_date=start_date_in, end_date=end_date_in, weather_variables_str=main_weather_variable_en)
         # Test API URL
@@ -151,11 +147,9 @@ if __name__ == "__main__":
         # Obtain solar power generation from main weather variable
         forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
         # print df
-        print(forecast_df.head(10))
         # Round decimals
         forecast_df["radiacion_directa [kW/m²]"] = forecast_df["radiacion_directa [kW/m²]"].round(3)
         forecast_df["potencia_solar [kW]"] = forecast_df["potencia_solar [kW]"].round(3)
-        print(forecast_df.head(10))
         # Show output dataframe
         st.header("Dataframe de predicción")
         st.dataframe(forecast_df)
@@ -177,13 +171,13 @@ if __name__ == "__main__":
                        labels={"fecha_hora": "Fecha-hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
                        color_discrete_sequence=color_palette2)
         st.header("Curvas de potencia total")
-        fig1.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
+        fig1.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         # Plot 2
         fig2 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
                        labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]", "fecha": "Fecha"},
                        markers=True, color_discrete_sequence=color_palette1)
-        fig2.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
+        fig2.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
         st.header("Curvas de potencia diarias")
         st.plotly_chart(fig2, theme="streamlit", use_container_width=True)
         # Plot 3
@@ -201,6 +195,6 @@ if __name__ == "__main__":
             fig_aux = px.bar(mini_df, x="hora", y="potencia_solar [kW]",
                              labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]"},
                              color="potencia_solar [kW]", color_continuous_scale=custom_colorscale)
-            fig_aux.update_layout(xaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'), yaxis=dict(showgrid=True, gridwidth=1, gridcolor='lightgray'))
-            st.subheader(f"{week_day_es.capitalize()}, {(date.day)} de {month_dict[date.month]} de {date.year}")
+            fig_aux.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+            st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)

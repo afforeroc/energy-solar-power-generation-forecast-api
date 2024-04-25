@@ -14,7 +14,17 @@ from datetime import datetime
 import pandas as pd
 
 
+def validate_keys(input_dict, key_list):
+    """Validate if all keys are in the dictionary or not"""
+    missing_keys = []
+    for key in key_list:
+        if key not in input_dict:
+            missing_keys.append(key)
+    return missing_keys
+
+
 def is_valid_number_str(value_str):
+    """Validate if a string is a valid number (integer, float)"""
     if value_str.isdigit():
         return True
     try:
@@ -25,6 +35,7 @@ def is_valid_number_str(value_str):
 
 
 def is_valid_date_str(date_str, date_str_format="%Y-%m-%d"):
+    """Validate if a string is a valid datetime"""
     try:
         datetime.strptime(date_str, date_str_format)
         return True
@@ -81,4 +92,3 @@ def create_excel_download_link(df, filename, html_text):
     link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" \
              download="{filename}">{html_text}</a>'
     return link
-

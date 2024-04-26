@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# URL sample: http://localhost:8501/?code=NX3756329Z&capacity=456&voltage=789&latitude=4.624335&longitude=-74.063644&area=700&start_date=2024-04-25&end_date=2024-05-01
+# URL sample: http://localhost:8501/?code=NX3756329Z&capacity=456&voltage=789&latitude=6.248&longitude=-75.57&area=314.16&start_date=2024-04-25&end_date=2024-05-01
 """
 Title: ECS: Predicción de energía solar
 Description: Web app that predicts solar power using OpenMeteo API.
@@ -43,18 +43,10 @@ if __name__ == "__main__":
     # Convert URL params in a dict and validate all params
     param_dict = st.query_params.to_dict()
     missing_params = validate_keys(param_dict, param_names)
-    # Define the default values without URL params
-    if len(param_dict) == 0:
-        st.markdown("Ubicación geográfica: **Bogotá D.C.** (*ejemplo*)")
-        latitude = 4.624335
-        longitude = -74.063644
-        area = 168.0
-        start_date = min_date
-        end_date = max_date
     # Validate each param and extract its value
-    elif len(missing_params) == 0:
+    if len(missing_params) == 0:
         code = param_dict["code"]
-        if not len(code) > 0:
+        if len(code) == 0:
             st.error("ERROR: El valor de 'code' en la URL está vacio.", icon="🚨")
             st.stop()
         # Validate and extract capacity param
@@ -111,24 +103,35 @@ if __name__ == "__main__":
         st.markdown(f"Código: **{code}**")
         st.markdown(f"Capacidad nominal [kVA]: **{capacity}**")
         st.markdown(f"Tensión nominal [kV]: **{voltage}**")
+        # Interpolate input data using forms
+        latitude = st.number_input("Latitud", value=latitude, min_value=-90.0, max_value=90.0)
+        longitude = st.number_input("Longitud", value=longitude, min_value=-180.0, max_value=180.0)
+        area = st.number_input("Área [m²]", value=area, min_value=0.0001)
+        start_date = st.date_input("Fecha inicial", value=start_date, min_value=min_date, max_value=max_date)
+        end_date = st.date_input("Fecha final", value=end_date, min_value=min_date, max_value=max_date)
+    elif len(missing_params) == len(param_names):
+        bogota_dict = {"latitude": 4.62, "longitude": -74.06, "area": 161.80}
+        latitude = st.number_input("Latitud", value=bogota_dict["latitude"], min_value=-90.0, max_value=90.0)
+        longitude = st.number_input("Longitud", value=bogota_dict["longitude"], min_value=-180.0, max_value=180.0)
+        area = st.number_input("Área [m²]", value=bogota_dict["area"], min_value=0.0001)
+        start_date = st.date_input("Fecha inicial", value=min_date, min_value=min_date, max_value=max_date)
+        end_date = st.date_input("Fecha final", value=max_date, min_value=min_date, max_value=max_date)
     else:
         missing_params_str = ", ".join(f"'{param}'" for param in missing_params)
         st.error(f"ERROR: Faltan los siguientes parámetros en la URL: {missing_params_str}", icon="🚨")
         st.stop()
-    # Interpolate input data using forms
-    latitude_in = st.number_input("Latitud", value=latitude, min_value=-90.0, max_value=90.0)
-    longitude_in = st.number_input("Longitud", value=longitude, min_value=-180.0, max_value=180.0)
-    area_in= st.number_input("Área [m²]", value=area, min_value=0.0001)
-    start_date_in = st.date_input("Fecha inicial", value=start_date, min_value=min_date, max_value=max_date)
-    end_date_in = st.date_input("Fecha final", value=end_date, min_value=min_date, max_value=max_date)
-    # Push the predict botton
-    if st.button('Predecir') or len(param_dict) == len(param_names):
+    # Push button
+    if st.button("Predecir"):
         # Validate ranges of values for each variable
-        if not end_date_in >= start_date_in:
+        if not end_date >= start_date:
             st.error("ERROR: La 'Fecha inicial' debe ser menor o igual que la 'Fecha final'.", icon="🚨")
             st.stop()
         # Format the OPEN_METEO_URL_TEMPLATE
-        open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude_in, longitude=longitude_in, area=area_in, start_date=start_date_in, end_date=end_date_in, weather_variables_str=main_weather_variable_en)
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude, longitude=longitude, 
+                                                                start_date=start_date_str, end_date=end_date_str, 
+                                                                weather_variables_str=main_weather_variable_en)
         # Test API URL
         # st.header("Test Open Meteo API URL")
         # st.success(open_meteo_api_url)
@@ -146,7 +149,6 @@ if __name__ == "__main__":
         forecast_df = forecast_df.drop(columns=[f"{main_weather_variable_en} [W/m²]"])
         # Obtain solar power generation from main weather variable
         forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
-        # print df
         # Round decimals
         forecast_df["radiacion_directa [kW/m²]"] = forecast_df["radiacion_directa [kW/m²]"].round(3)
         forecast_df["potencia_solar [kW]"] = forecast_df["potencia_solar [kW]"].round(3)
@@ -154,7 +156,7 @@ if __name__ == "__main__":
         st.header("Dataframe de predicción")
         st.dataframe(forecast_df)
         # Download in excel
-        output_filename = f"prediccion_solar_lat{latitude}_lon{longitude}_area{area}"
+        output_filename = f"prediccion_solar_lat_{latitude}_lon_{longitude}_area_{area}_{start_date_str}_{end_date}"
         excel_filename = output_filename + ".xlsx"
         download_excel_link = create_excel_download_link(forecast_df.reset_index(), excel_filename, "Descargar Excel")
         st.markdown(download_excel_link, unsafe_allow_html=True)
@@ -171,13 +173,15 @@ if __name__ == "__main__":
                        labels={"fecha_hora": "Fecha-hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
                        color_discrete_sequence=color_palette2)
         st.header("Curvas de potencia total")
-        fig1.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+        fig1.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
+                           yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         # Plot 2
         fig2 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
                        labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]", "fecha": "Fecha"},
                        markers=True, color_discrete_sequence=color_palette1)
-        fig2.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+        fig2.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
+                           yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
         st.header("Curvas de potencia diarias")
         st.plotly_chart(fig2, theme="streamlit", use_container_width=True)
         # Plot 3
@@ -195,6 +199,7 @@ if __name__ == "__main__":
             fig_aux = px.bar(mini_df, x="hora", y="potencia_solar [kW]",
                              labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]"},
                              color="potencia_solar [kW]", color_continuous_scale=custom_colorscale)
-            fig_aux.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'}, yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+            fig_aux.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
+                                  yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
             st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)

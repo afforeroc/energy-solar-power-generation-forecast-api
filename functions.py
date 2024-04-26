@@ -128,19 +128,19 @@ def create_excel_download_link(df, filename, html_text):
     return link
 
 
-def obtener_zona_horaria_servidor():
+def get_server_time_zone():
     now = datetime.now()
-    zona_horaria_servidor = now.astimezone().tzinfo
-    return zona_horaria_servidor
+    server_time_zone = now.astimezone().tzinfo
+    return server_time_zone
 
 
-def obtener_zona_horaria_cliente():
-    zona_horaria_cliente = get_localzone()
-    return zona_horaria_cliente
+def get_client_time_zone():
+    client_time_zone = get_localzone()
+    return client_time_zone
 
 
-def calcular_diferencia_horaria():
-    zona_horaria_servidor = obtener_zona_horaria_servidor()
-    zona_horaria_cliente = obtener_zona_horaria_cliente()
-    diferencia_horaria = zona_horaria_cliente.utcoffset(datetime.now()) - zona_horaria_servidor.utcoffset(datetime.now())
-    return diferencia_horaria
+def calculate_time_zone_difference():
+    server_time_zone = get_server_time_zone()
+    client_time_zone = get_client_time_zone()
+    time_zone_difference = client_time_zone.utcoffset(datetime.now()) - server_time_zone.utcoffset(datetime.now())
+    return time_zone_difference

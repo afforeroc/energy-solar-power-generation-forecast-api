@@ -11,7 +11,9 @@ from urllib.error import HTTPError, URLError
 import json
 import base64
 from datetime import datetime
+from tzlocal import get_localzone
 import pandas as pd
+import streamlit as st
 
 
 def validate_keys(input_dict, key_list):
@@ -25,22 +27,54 @@ def validate_keys(input_dict, key_list):
 
 def is_valid_number_str(value_str):
     """Validate if a string is a valid number (integer, float)"""
-    if value_str.isdigit():
-        return True
     try:
-        _ = float(value_str)
+        float(value_str)
         return True
     except ValueError:
         return False
 
 
-def is_valid_date_str(date_str, date_str_format="%Y-%m-%d"):
+def is_valid_date_str(value_str, date_format="%Y-%m-%d"):
     """Validate if a string is a valid datetime"""
     try:
-        datetime.strptime(date_str, date_str_format)
+        datetime.strptime(value_str, date_format)
         return True
     except ValueError:
         return False
+
+
+def st_validate_param_value_is_empty(param_dict, param):
+    """Validate if a param value is empty"""
+    value = param_dict[param]
+    if len(value) == 0:
+        st.error(f"ERROR: El valor del parámetro '{param}' en la URL está vacio.", icon="🚨")
+        st.stop()
+
+
+def st_validate_param_value_is_number(param_dict, param):
+    """Validate if a param value is a number"""
+    value = param_dict[param]
+    if not is_valid_number_str(value):
+        st.error(f"ERROR: El valor '{value}' del parámetro '{param}' en la URL no representa un número válido.", icon="🚨")
+        st.stop()
+
+
+def st_validate_param_value_is_date(param_dict, param):
+    """Validate if a param value is a date"""
+    value = param_dict[param]
+    if not is_valid_date_str(value):
+        st.error(f"ERROR: El valor '{value}' del parámetro '{param}' en la URL no representa una fecha válida.", icon="🚨")
+        st.stop()
+
+
+def st_validate_value_range_of_param_value(param, value, min_value, max_value):
+    """Validate if a param value is in value range"""
+    if not min_value <= value <= max_value:
+        if isinstance(value, datetime):
+            st.error(f"ERROR: El valor '{value.strftime('%Y-%m-%d')}' del parámetro '{param}' en la URL no pertenece al rango de valores entre '{min_value.strftime('%Y-%m-%d')}' y '{max_value.strftime('%Y-%m-%d')}'.", icon="🚨")
+            st.stop()
+        st.error(f"ERROR: El valor '{value}' del parámetro '{param}' en la URL no pertenece al rango de valores entre '{min_value}' y '{max_value}'.", icon="🚨")
+        st.stop()
 
 
 def fetch_json(url):
@@ -92,3 +126,21 @@ def create_excel_download_link(df, filename, html_text):
     link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" \
              download="{filename}">{html_text}</a>'
     return link
+
+
+def obtener_zona_horaria_servidor():
+    now = datetime.now()
+    zona_horaria_servidor = now.astimezone().tzinfo
+    return zona_horaria_servidor
+
+
+def obtener_zona_horaria_cliente():
+    zona_horaria_cliente = get_localzone()
+    return zona_horaria_cliente
+
+
+def calcular_diferencia_horaria():
+    zona_horaria_servidor = obtener_zona_horaria_servidor()
+    zona_horaria_cliente = obtener_zona_horaria_cliente()
+    diferencia_horaria = zona_horaria_cliente.utcoffset(datetime.now()) - zona_horaria_servidor.utcoffset(datetime.now())
+    return diferencia_horaria

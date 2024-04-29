@@ -126,21 +126,3 @@ def create_excel_download_link(df, filename, html_text):
     link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" \
              download="{filename}">{html_text}</a>'
     return link
-
-
-def get_server_time_zone():
-    now = datetime.now()
-    server_time_zone = now.astimezone().tzinfo
-    return server_time_zone
-
-
-def get_client_time_zone():
-    client_time_zone = get_localzone()
-    return client_time_zone
-
-
-def calculate_time_zone_difference():
-    server_time_zone = get_server_time_zone()
-    client_time_zone = get_client_time_zone()
-    time_zone_difference = client_time_zone.utcoffset(datetime.now()) - server_time_zone.utcoffset(datetime.now())
-    return time_zone_difference

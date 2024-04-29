@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import plotly.express as px
 import streamlit as st
 from functions import validate_keys, st_validate_param_value_is_empty, st_validate_param_value_is_number, st_validate_param_value_is_date, st_validate_value_range_of_param_value, \
-    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link, get_server_time_zone, get_client_time_zone, calculate_time_zone_difference
+    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
 
 # Constants
 forecast_days = 7
@@ -176,14 +176,5 @@ if __name__ == "__main__":
                                   yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
             st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)
-
         # Get and display the time zones
-        server_time_zone = get_server_time_zone()
-        client_time_zone = get_client_time_zone()
-
-        st.markdown(f"Server Time Zone: **{server_time_zone}**")
-        st.markdown(f"Client Time Zone: **{client_time_zone}**")
-
-        # Calculate and display the time zone difference
-        time_zone_difference = calculate_time_zone_difference()
-        st.markdown(f"Time Zone Difference between Server and Client: **{time_zone_difference}**")
+        st.markdown(f"Server Time Zone: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**")

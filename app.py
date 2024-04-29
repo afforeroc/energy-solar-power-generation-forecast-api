@@ -38,7 +38,6 @@ if __name__ == "__main__":
     st.set_page_config(page_title="ECS: Predicción energía solar", page_icon="🌞")
     st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
-
     # Obtain today and seven days forwarth dates
     min_date = datetime.combine(datetime.now().date(), datetime.min.time())
     max_date = min_date + timedelta(days=delta_days)
@@ -132,11 +131,11 @@ if __name__ == "__main__":
         forecast_df["Potencia a generar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
         # Show output dataframe
         st.header("Dataframe de predicción")
-        st.dataframe(forecast_df)        
+        st.dataframe(forecast_df)
         # Set output filename base
         output_filename_base = f"latitud_{latitude}_longitud_{longitude}_area_{area}_fecha_inicial_{start_date_str}_fecha_final_{end_date}"
         if execution_mode == 1:
-            output_filename_base = f"prediccion_solar_visor_geografico_{output_filename_base}"
+            output_filename_base = f"prediccion_solar_visor_geografico{output_filename_base}"
         else:
             output_filename_base = f"prediccion_solar_muestra_{output_filename_base}"
         # Download excel
@@ -174,9 +173,9 @@ if __name__ == "__main__":
             week_day_es = week_en_es_dict[week_day_en]
             color_for_date = color_palette1[idx % len(color_palette1)]
             fig_aux = px.bar(mini_df, x="Hora [h]", y="Potencia a generar [kW]",
-                            color_discrete_sequence=[color_for_date]*len(mini_df))  # Set uniform color for all bars
+                             color_discrete_sequence=[color_for_date]*len(mini_df))  # Set uniform color for all bars
             fig_aux.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
-                                yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+                                  yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
             st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)
         # Get and display the time zones

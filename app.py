@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# URL sample: http://localhost:8501/?code=NX3756329Z&capacity=456&voltage=789&latitude=6.248&longitude=-75.57&area=314.16&start_date=2024-04-25&end_date=2024-05-01
+# URL sample: http://localhost:8501/?code=NX3756329Z&capacity=456&voltage=789&latitude=6.248&longitude=-75.57&area=314.16&start_date=2024-04-30&end_date=2024-05-01
 """
 Title: ECS: Predicción de energía solar
 Description: Web app that predicts solar power using OpenMeteo API.
@@ -8,10 +8,11 @@ Date: 2024-04-18
 """
 
 from datetime import datetime, timedelta
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 from functions import validate_keys, st_validate_param_value_is_empty, st_validate_param_value_is_number, st_validate_param_value_is_date, st_validate_value_range_of_param_value, \
-    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link
+    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link_one_sheet
 
 # Constants
 forecast_days = 7
@@ -20,7 +21,7 @@ mega = 10e6
 kilo = 10e3
 param_names = ["latitude", "longitude", "area", "start_date", "end_date", "code", "capacity", "voltage"]
 main_weather_variable_en = "direct_radiation"
-main_weather_variable_es = "radiacion_directa"
+main_weather_variable_es = "Radiación directa"
 week_en_es_dict = {
     "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
     "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     missing_params = validate_keys(param_dict, param_names)
     # Validate each param and extract its value
     if len(missing_params) == 0:
+        execution_mode = 1
         # Validate if a param value is empty
         for param in param_dict:
             st_validate_param_value_is_empty(param_dict, param)
@@ -82,13 +84,19 @@ if __name__ == "__main__":
         area = st.number_input("Área [m²]", value=area, min_value=0.0001)
         start_date = st.date_input("Fecha inicial", value=start_date, min_value=min_date, max_value=max_date)
         end_date = st.date_input("Fecha final", value=end_date, min_value=min_date, max_value=max_date)
+        # Create metadata df
+        metadata_variable_names = ["Código", "Capacidad nominal [kVA]", "Tensión nominal [kV]", "Latitud", "Longitud", "Área [m²]", "Fecha inicial", "Fecha final"]
+        metadata_variable_values = [code, capacity, voltage, latitude, longitude, area, start_date, end_date]
     elif len(missing_params) == len(param_names):
+        execution_mode = 2
         bogota_dict = {"latitude": 4.62, "longitude": -74.06, "area": 161.80}
         latitude = st.number_input("Latitud", value=bogota_dict["latitude"], min_value=-90.0, max_value=90.0)
         longitude = st.number_input("Longitud", value=bogota_dict["longitude"], min_value=-180.0, max_value=180.0)
         area = st.number_input("Área [m²]", value=bogota_dict["area"], min_value=0.0001)
         start_date = st.date_input("Fecha inicial", value=min_date, min_value=min_date, max_value=max_date)
         end_date = st.date_input("Fecha final", value=max_date, min_value=min_date, max_value=max_date)
+        metadata_variable_names = ["Latitud", "Longitud", "Área [m²]", "Fecha inicial", "Fecha final"]
+        metadata_variable_values = [latitude, longitude, area, start_date, end_date]
     else:
         missing_params_str = ", ".join(f"'{param}'" for param in missing_params)
         st.error(f"ERROR: Faltan los siguientes parámetros en la URL: {missing_params_str}", icon="🚨")
@@ -112,8 +120,8 @@ if __name__ == "__main__":
         json_data = fetch_json(open_meteo_api_url)
         # Forecast dataframe from JSON data
         forecast_df = get_weather_df_from_open_meteo_json(json_data)
-        forecast_df = forecast_df.rename(columns={"datetime": "fecha_hora"})
-        forecast_df = forecast_df.set_index("fecha_hora")
+        forecast_df = forecast_df.rename(columns={"datetime": "Fecha-hora"})
+        forecast_df = forecast_df.set_index("Fecha-hora")
         # Replace negative values by zero
         forecast_df.loc[forecast_df[f"{main_weather_variable_en} [W/m²]"] < 0, f"{main_weather_variable_en} [W/m²]"] = 0
         # Convert weather variable columns from Watts to kilo Watts
@@ -121,37 +129,38 @@ if __name__ == "__main__":
         # Delete old column
         forecast_df = forecast_df.drop(columns=[f"{main_weather_variable_en} [W/m²]"])
         # Obtain solar power generation from main weather variable
-        forecast_df["potencia_solar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
-        # Round decimals
-        forecast_df["radiacion_directa [kW/m²]"] = forecast_df["radiacion_directa [kW/m²]"].round(3)
-        forecast_df["potencia_solar [kW]"] = forecast_df["potencia_solar [kW]"].round(3)
+        forecast_df["Potencia a generar [kW]"] = forecast_df[f"{main_weather_variable_es} [kW/m²]"] * area
         # Show output dataframe
         st.header("Dataframe de predicción")
-        st.dataframe(forecast_df)
-        # Download in excel
-        output_filename = f"prediccion_solar_lat_{latitude}_lon_{longitude}_area_{area}_{start_date_str}_{end_date}"
-        excel_filename = output_filename + ".xlsx"
-        download_excel_link = create_excel_download_link(forecast_df.reset_index(), excel_filename, "Descargar Excel")
+        st.dataframe(forecast_df)        
+        # Set output filename base
+        output_filename_base = f"latitud_{latitude}_longitud_{longitude}_area_{area}_fecha_inicial_{start_date_str}_fecha_final_{end_date}"
+        if execution_mode == 1:
+            output_filename_base = f"prediccion_solar_visor_geografico_{output_filename_base}"
+        else:
+            output_filename_base = f"prediccion_solar_muestra_{output_filename_base}"
+        # Download excel
+        metadata_df = pd.DataFrame({"Variable": metadata_variable_names, "Valor": metadata_variable_values})
+        dataframes = [metadata_df, forecast_df.reset_index()]
+        download_excel_link = create_excel_download_link_one_sheet(dataframes, output_filename_base, html_text="Descargar Excel", sheet_name="Hoja1")
         st.markdown(download_excel_link, unsafe_allow_html=True)
         # Create graph_df
         graph_df = forecast_df.reset_index().copy()
-        graph_df["fecha"] = graph_df["fecha_hora"].dt.date
-        graph_df["hora"] = graph_df["fecha_hora"].dt.hour
-        date_list = list(graph_df["fecha"].unique())
+        graph_df["Fecha"] = graph_df["Fecha-hora"].dt.date
+        graph_df["Hora [h]"] = graph_df["Fecha-hora"].dt.hour
+        date_list = list(graph_df["Fecha"].unique())
         # Palette of colors for plots
         color_palette1 = px.colors.qualitative.Plotly[:len(date_list)]
         color_palette2 = px.colors.qualitative.D3[:len(date_list)]
         # Plot 1
-        fig1 = px.area(graph_df, x="fecha_hora", y="potencia_solar [kW]",
-                       labels={"fecha_hora": "Fecha-hora", "potencia_solar [kW]": "Potencia a generar [kW]"},
-                       color_discrete_sequence=color_palette2)
+        fig1 = px.area(graph_df, x="Fecha-hora", y="Potencia a generar [kW]",
+                       markers=True, color_discrete_sequence=color_palette2)
         st.header("Curvas de potencia total")
         fig1.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
                            yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         # Plot 2
-        fig2 = px.line(graph_df, x="hora", y="potencia_solar [kW]", color="fecha",
-                       labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]", "fecha": "Fecha"},
+        fig2 = px.line(graph_df, x="Hora [h]", y="Potencia a generar [kW]", color="Fecha",
                        markers=True, color_discrete_sequence=color_palette1)
         fig2.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
                            yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
@@ -160,20 +169,14 @@ if __name__ == "__main__":
         # Plot 3
         st.header("Potencia por hora en el día")
         for idx, date in enumerate(date_list):
-            # Extract mini df
-            mini_df = graph_df[graph_df["fecha"] == date]
-            # Set week day in spanish
-            week_day_en = mini_df["fecha_hora"].astype(object).unique()[0].strftime("%A")
+            mini_df = graph_df[graph_df["Fecha"] == date]
+            week_day_en = mini_df["Fecha-hora"].astype(object).unique()[0].strftime("%A")
             week_day_es = week_en_es_dict[week_day_en]
-            # Set color scale related with first section
             color_for_date = color_palette1[idx % len(color_palette1)]
-            custom_colorscale = [[0.0, "#FFFFFF"], [1.0, color_for_date]]
-            # Plot for each date
-            fig_aux = px.bar(mini_df, x="hora", y="potencia_solar [kW]",
-                             labels={"hora": "Hora [h]", "potencia_solar [kW]": "Potencia a generar [kW]"},
-                             color="potencia_solar [kW]", color_continuous_scale=custom_colorscale)
+            fig_aux = px.bar(mini_df, x="Hora [h]", y="Potencia a generar [kW]",
+                            color_discrete_sequence=[color_for_date]*len(mini_df))  # Set uniform color for all bars
             fig_aux.update_layout(xaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'},
-                                  yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
+                                yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
             st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)
         # Get and display the time zones

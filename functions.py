@@ -11,7 +11,6 @@ from urllib.error import HTTPError, URLError
 import json
 import base64
 from datetime import datetime
-from tzlocal import get_localzone
 import pandas as pd
 import streamlit as st
 
@@ -106,23 +105,28 @@ def get_weather_df_from_open_meteo_json(json_data):
     return weather_df
 
 
-def create_csv_download_link(df, filename, html_text):
+def create_csv_download_link(df, filename_base, html_text):
     """Create a download link for a DataFrame in CSV format"""
     csv_data = df.to_csv(index=False).encode()
     b64 = base64.b64encode(csv_data).decode()
+    filename = f"{filename_base}.xlsx"
     link = f'<a href="data:application/octet-stream;base64,{b64}" \
         download="{filename}">{html_text}</a>'
     return link
 
 
-def create_excel_download_link(df, filename, html_text):
-    """Create a download link for a DataFrame in Excel format"""
+def create_excel_download_link_one_sheet(dataframes, filename_base, html_text, sheet_name="Sheet1"):
+    """Create a download link for multiple DataFrames in Excel format on the same sheet"""
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        startrow = 0
+        for df in dataframes:
+            df.to_excel(writer, index=False, sheet_name=sheet_name, startrow=startrow)
+            startrow += df.shape[0] + 2
     output.seek(0)
     excel_data = output.read()
     b64 = base64.b64encode(excel_data).decode()
+    filename = f"{filename_base}.xlsx"
     link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" \
              download="{filename}">{html_text}</a>'
     return link

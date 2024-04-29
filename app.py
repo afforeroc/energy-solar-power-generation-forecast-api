@@ -135,7 +135,7 @@ if __name__ == "__main__":
         # Set output filename base
         output_filename_base = f"latitud_{latitude}_longitud_{longitude}_area_{area}_fecha_inicial_{start_date_str}_fecha_final_{end_date}"
         if execution_mode == 1:
-            output_filename_base = f"prediccion_solar_visor_geografico{output_filename_base}"
+            output_filename_base = f"prediccion_solar_visor_geografico_{output_filename_base}"
         else:
             output_filename_base = f"prediccion_solar_muestra_{output_filename_base}"
         # Download excel

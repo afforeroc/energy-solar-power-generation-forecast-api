@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from functions import validate_keys, st_validate_param_value_is_empty, st_validate_param_value_is_number, st_validate_param_value_is_date, st_validate_value_range_of_param_value, \
-    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link_one_sheet
+    fetch_json, get_weather_df_from_open_meteo_json, create_excel_download_link_one_sheet, obtain_time_zone_name
 
 # Constants
 forecast_days = 7
@@ -38,8 +38,25 @@ if __name__ == "__main__":
     st.set_page_config(page_title="ECS: Predicción energía solar", page_icon="🌞")
     st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
+    # Time zone selector
+    time_zone_name = obtain_time_zone_name()
+    st.markdown(f"Zona horaria del servidor: **{time_zone_name}**")
+    time_zone_selected = st.radio(
+        "Zona horaria",
+        ["America/Bogota", "UTC"],
+        captions = ["UTC-5", "UTC+0"]
+    )
+    if time_zone_selected == time_zone_name:
+        adjusted_datetime = datetime.now()
+        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
+    elif time_zone_name == "America/Bogota" and time_zone_selected == "UTC":
+        adjusted_datetime = datetime.now() + timedelta(hours=5)
+        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
+    else: # time_zone_name == "UTC" and time_zone_selected == "America/Bogota":
+        adjusted_datetime = datetime.now() - timedelta(hours=5)
+        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
     # Obtain today and seven days forwarth dates
-    min_date = datetime.combine(datetime.now().date(), datetime.min.time())
+    min_date = datetime.combine(adjusted_datetime.date(), datetime.min.time())
     max_date = min_date + timedelta(days=delta_days)
     # Convert URL params in a dict and validate all params
     param_dict = st.query_params.to_dict()
@@ -178,5 +195,3 @@ if __name__ == "__main__":
                                   yaxis={"showgrid": True, "gridwidth": 1, "gridcolor": 'lightgray'})
             st.subheader(f"{week_day_es}, {(date.day)} de {month_dict[date.month]} de {date.year}")
             st.plotly_chart(fig_aux, theme="streamlit", use_container_width=True)
-        # Get and display the time zones
-        st.markdown(f"Server Time Zone: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**")

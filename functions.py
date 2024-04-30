@@ -11,6 +11,7 @@ from urllib.error import HTTPError, URLError
 import json
 import base64
 from datetime import datetime
+from tzlocal import get_localzone
 import pandas as pd
 import streamlit as st
 
@@ -130,3 +131,10 @@ def create_excel_download_link_one_sheet(dataframes, filename_base, html_text, s
     link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" \
              download="{filename}">{html_text}</a>'
     return link
+
+
+def obtain_time_zone_name():
+    """Obtain time zone local"""
+    local_timezone = get_localzone()
+    time_zone_name = local_timezone.key
+    return time_zone_name

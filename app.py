@@ -43,13 +43,13 @@ if __name__ == "__main__":
     st.markdown(f"Zona horaria del servidor: **{time_zone_name}**")
     time_zone_selected = st.radio(
         "Zona horaria",
-        ["America/Bogota", "UTC"],
+        ["America/Bogota", "Etc/UTC"],
         captions = ["UTC-5", "UTC+0"]
     )
     if time_zone_selected == time_zone_name:
         adjusted_datetime = datetime.now()
         st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
-    elif time_zone_name == "America/Bogota" and time_zone_selected == "UTC":
+    elif time_zone_name == "America/Bogota" and time_zone_selected == "Etc/UTC":
         adjusted_datetime = datetime.now() + timedelta(hours=5)
         st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
     else: # time_zone_name == "UTC" and time_zone_selected == "America/Bogota":

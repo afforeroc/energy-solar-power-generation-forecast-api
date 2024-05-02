@@ -30,7 +30,7 @@ month_dict = {
     1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
     7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
 }
-OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly={weather_variables_str}&timezone={timezone}"
+OPEN_METEO_API_URL_TEMPLATE = "https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly={weather_variables_str}&timezone=auto"
 
 
 if __name__ == "__main__":
@@ -122,7 +122,7 @@ if __name__ == "__main__":
         end_date_str = end_date.strftime("%Y-%m-%d")
         open_meteo_api_url = OPEN_METEO_API_URL_TEMPLATE.format(latitude=latitude, longitude=longitude,
                                                                 start_date=start_date_str, end_date=end_date_str,
-                                                                weather_variables_str=main_weather_variable_en, timezone=time_zone_name)
+                                                                weather_variables_str=main_weather_variable_en)
         # Test API URL
         # st.header("Test Open Meteo API URL")
         # st.success(open_meteo_api_url)

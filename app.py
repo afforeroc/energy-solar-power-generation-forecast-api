@@ -39,22 +39,17 @@ if __name__ == "__main__":
     st.title("Predicción de energía solar")
     st.caption("Sistema de predicción de generación de energía solar de Energy Computer Systems")
     # Time zone selector
+    st.markdown(f"Zona horaria establecida: **America/Bogota**")
     time_zone_name = obtain_time_zone_name()
-    st.markdown(f"Zona horaria del servidor: **{time_zone_name}**")
-    time_zone_selected = st.radio(
-        "Zona horaria",
-        ["America/Bogota", "Etc/UTC"],
-        captions = ["UTC-5", "UTC+0"]
-    )
-    if time_zone_selected == time_zone_name:
-        adjusted_datetime = datetime.now()
-        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
-    elif time_zone_name == "America/Bogota" and time_zone_selected == "Etc/UTC":
-        adjusted_datetime = datetime.now() + timedelta(hours=5)
-        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
-    else: # time_zone_name == "UTC" and time_zone_selected == "America/Bogota":
+    if time_zone_name == "Etc/UTC":
         adjusted_datetime = datetime.now() - timedelta(hours=5)
         st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
+    elif time_zone_name == "America/Bogota":
+        adjusted_datetime = datetime.now()
+        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
+    else:
+        st.error(f"ERROR: La zona horaria '{time_zone_name}' no está soportada.", icon="🚨")
+        st.stop()
     # Obtain today and seven days forwarth dates
     min_date = datetime.combine(adjusted_datetime.date(), datetime.min.time())
     max_date = min_date + timedelta(days=delta_days)

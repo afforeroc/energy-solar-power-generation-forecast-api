@@ -43,13 +43,12 @@ if __name__ == "__main__":
     time_zone_name = obtain_time_zone_name()
     if time_zone_name == "Etc/UTC":
         adjusted_datetime = datetime.now() - timedelta(hours=5)
-        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
     elif time_zone_name == "America/Bogota":
         adjusted_datetime = datetime.now()
-        st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
     else:
         st.error(f"ERROR: La zona horaria '{time_zone_name}' no está soportada.", icon="🚨")
         st.stop()
+    # st.write(f"Hora actual: **{adjusted_datetime.strftime("%H:%M:%S")}**")
     # Obtain today and seven days forwarth dates
     min_date = datetime.combine(adjusted_datetime.date(), datetime.min.time())
     max_date = min_date + timedelta(days=delta_days)
